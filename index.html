@@ -1,163 +1,727 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>SmartGuard — Smart Home Security System</title>
-  <meta name="description" content="Smart home security system that recognises family members and flags intruders using OpenCV face recognition.">
-  <link rel="stylesheet" href="/static/css/style.css">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SmartGuard — Smart Home Security System</title>
+<meta name="description" content="Smart home security system that recognises welcome guests and flags intruders. Runs fully in the browser with face recognition.">
+<style>
+:root{
+  --bg:#f6f7f4;--card:#fff;--ink:#1d2723;--muted:#6a7770;--line:#e3e6df;
+  --green:#1e8e3e;--green-dark:#146c2e;--green-soft:#e7f5ea;
+  --red:#c5221f;--red-soft:#fdeceb;--amber:#a05a00;--amber-soft:#fdf1dc;
+  --radius:14px;--shadow:0 1px 2px rgba(16,24,20,.05),0 8px 22px rgba(16,24,20,.05);
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;line-height:1.55;font-size:15px}
+.container{width:100%;max-width:1100px;margin:0 auto;padding:0 18px}
+h2{font-size:1rem;margin:0;font-weight:700}
+h3{margin:0}
+
+.topbar{background:#fff;border-bottom:1px solid var(--line);position:sticky;top:0;z-index:20}
+.topbar-inner{display:flex;align-items:center;justify-content:space-between;height:62px}
+.brand{display:flex;align-items:center;gap:10px}
+.brand-mark{width:34px;height:34px;border-radius:10px;background:var(--green);color:#fff;display:grid;place-items:center;font-weight:800;font-size:.9rem}
+.brand strong{display:block;font-size:1.02rem;line-height:1.2}
+.brand-sub{font-size:.76rem;color:var(--muted)}
+.system-state{display:flex;align-items:center;gap:8px;font-size:.84rem;color:var(--muted);background:#f4f6f2;border:1px solid var(--line);padding:6px 12px;border-radius:999px}
+.dot{width:8px;height:8px;border-radius:50%;background:#b9c0ba}
+.dot.live{background:var(--green);box-shadow:0 0 0 3px rgba(30,142,62,.16)}
+.dot.alert{background:var(--red);box-shadow:0 0 0 3px rgba(197,34,31,.16)}
+.dot.busy{background:var(--amber);box-shadow:0 0 0 3px rgba(160,90,0,.16)}
+
+main{padding:22px 18px 40px}
+.grid-main{display:grid;grid-template-columns:1.5fr 1fr;gap:18px;align-items:start}
+.grid-two{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:18px;align-items:start}
+
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden}
+.card-head{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:14px 16px;border-bottom:1px solid var(--line)}
+.card-body{padding:16px}
+.pill{font-size:.72rem;font-weight:700;padding:3px 9px;border-radius:999px;background:#f1f3ef;color:var(--muted);white-space:nowrap}
+.pill-green{background:var(--green-soft);color:var(--green-dark)}
+.pill-red{background:var(--red-soft);color:var(--red)}
+.pill-amber{background:var(--amber-soft);color:var(--amber)}
+
+.camera-wrap{position:relative;background:#10160f;aspect-ratio:4/3;overflow:hidden}
+.camera-wrap video,.camera-wrap canvas{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+#video{transform:scaleX(-1)}
+#overlay{pointer-events:none;transform:scaleX(-1)}
+.camera-empty{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;color:#cfd6cd;padding:24px;gap:6px}
+.camera-empty p{margin:0;font-weight:700;font-size:1rem;color:#eef2ec}
+.camera-empty span{font-size:.84rem;max-width:330px}
+.camera-empty.hide{display:none}
+
+.controls{display:flex;gap:8px;flex-wrap:wrap;padding:14px 16px 6px}
+.hint{margin:8px 16px 16px;font-size:.82rem;color:var(--muted)}
+.hint.small{font-size:.78rem;margin:12px 0 0}
+.card-body .hint{margin:0 0 12px}
+
+.btn{font-family:inherit;font-size:.87rem;font-weight:600;padding:9px 15px;border-radius:9px;border:1px solid transparent;cursor:pointer;transition:background .15s,opacity .15s}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.btn-primary{background:var(--green);color:#fff}
+.btn-primary:hover:not(:disabled){background:var(--green-dark)}
+.btn-dark{background:#24352b;color:#fff}
+.btn-dark:hover:not(:disabled){background:#16241c}
+.btn-outline{background:#fff;color:var(--ink);border-color:var(--line)}
+.btn-outline:hover:not(:disabled){background:#f4f6f2}
+.btn-ghost{background:transparent;color:var(--muted);font-size:.78rem;padding:6px 8px}
+.btn-ghost:hover:not(:disabled){color:var(--red)}
+.btn-block{display:block;width:100%;margin-top:12px}
+
+.result-card{display:flex;flex-direction:column}
+.result-body{padding:26px 18px 20px;text-align:center;flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.result-icon{width:62px;height:62px;border-radius:50%;background:#f1f3ef;color:var(--muted);display:grid;place-items:center;font-size:1.6rem;font-weight:800;margin-bottom:14px}
+.result-title{font-size:1.3rem;margin-bottom:4px}
+.result-text{color:var(--muted);font-size:.88rem;margin:0;max-width:270px}
+.result-meta{color:var(--muted);font-size:.78rem;margin:10px 0 0}
+.result-foot{display:flex;justify-content:space-between;gap:10px;padding:11px 16px;border-top:1px solid var(--line);font-size:.76rem;color:var(--muted);background:#fbfcfa}
+.result-card.is-known{border-color:#b9e0c3;background:#f6fdf7}
+.result-card.is-known .result-icon{background:var(--green-soft);color:var(--green-dark)}
+.result-card.is-known .result-title{color:var(--green-dark)}
+.result-card.is-unknown{border-color:#f3c3c1;background:#fff8f8}
+.result-card.is-unknown .result-icon{background:var(--red-soft);color:var(--red)}
+.result-card.is-unknown .result-title{color:var(--red)}
+.result-card.is-noface{border-color:#efd9b4;background:#fffcf5}
+.result-card.is-noface .result-icon{background:var(--amber-soft);color:var(--amber)}
+.result-card.is-noface .result-title{color:var(--amber)}
+
+.field-label{display:block;font-size:.82rem;font-weight:600;margin-bottom:6px}
+input[type="text"]{width:100%;font-family:inherit;font-size:.92rem;padding:10px 12px;border:1px solid var(--line);border-radius:9px;background:#fff;color:var(--ink)}
+input[type="text"]:focus{outline:2px solid #cfe8d5;border-color:#b3d9bd}
+.alert{display:none;margin-top:12px;padding:10px 12px;border-radius:9px;font-size:.84rem}
+.alert.show{display:block}
+.alert-ok{background:var(--green-soft);color:var(--green-dark)}
+.alert-bad{background:var(--red-soft);color:var(--red)}
+
+.people-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:12px}
+.person{border:1px solid var(--line);border-radius:11px;overflow:hidden;text-align:center;background:#fff}
+.person img,.person .noimg{width:100%;height:74px;object-fit:cover;background:#eef1ec;display:grid;place-items:center;color:var(--muted);font-size:1.2rem}
+.person-name{display:block;font-size:.78rem;font-weight:600;padding:6px 4px 2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.person-sub{display:block;font-size:.68rem;color:var(--muted);padding-bottom:6px}
+.person-remove{width:100%;border:0;border-top:1px solid var(--line);background:#fbfcfa;color:var(--muted);font-size:.72rem;font-family:inherit;padding:5px;cursor:pointer}
+.person-remove:hover{background:var(--red-soft);color:var(--red)}
+
+.event-list{list-style:none;margin:0;padding:0}
+.event-list li{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--line);font-size:.84rem}
+.event-list li:last-child{border-bottom:0}
+.event-badge{font-size:.68rem;font-weight:700;padding:2px 8px;border-radius:999px;white-space:nowrap}
+.event-badge.welcome{background:var(--green-soft);color:var(--green-dark)}
+.event-badge.intruder{background:var(--red-soft);color:var(--red)}
+.event-name{font-weight:600}
+.event-time{margin-left:auto;color:var(--muted);font-size:.75rem;white-space:nowrap}
+
+.intruder-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(100px,1fr));gap:10px}
+.intruder-grid figure{margin:0;border:1px solid #f3c3c1;border-radius:10px;overflow:hidden;background:#fff8f8}
+.intruder-grid img{width:100%;height:78px;object-fit:cover}
+.intruder-grid figcaption{font-size:.68rem;color:var(--red);text-align:center;padding:4px}
+
+.empty{color:var(--muted);font-size:.84rem;margin:0}
+.footer-note{text-align:center;color:var(--muted);font-size:.78rem;margin:26px 0 0}
+
+@media (max-width:860px){
+  .grid-main,.grid-two{grid-template-columns:1fr}
+  .result-body{padding:20px 16px}
+  .result-icon{width:54px;height:54px;font-size:1.4rem}
+}
+</style>
 </head>
 <body>
 
-  <header class="topbar">
-    <div class="container topbar-inner">
-      <div class="brand">
-        <span class="brand-mark">SG</span>
-        <div>
-          <strong>SmartGuard</strong>
-          <span class="brand-sub">Smart Home Security</span>
-        </div>
-      </div>
-      <div class="system-state">
-        <span class="dot" id="sysDot"></span>
-        <span id="sysText">Camera off</span>
+<header class="topbar">
+  <div class="container topbar-inner">
+    <div class="brand">
+      <span class="brand-mark">SG</span>
+      <div>
+        <strong>SmartGuard</strong>
+        <span class="brand-sub">Smart Home Security</span>
       </div>
     </div>
-  </header>
+    <div class="system-state">
+      <span class="dot" id="sysDot"></span>
+      <span id="sysText">Loading models…</span>
+    </div>
+  </div>
+</header>
 
-  <main class="container">
+<main class="container">
 
-    <!-- ============ Camera + result ============ -->
-    <section class="grid-main">
+  <section class="grid-main">
 
-      <!-- Camera -->
-      <div class="card camera-card">
-        <div class="card-head">
-          <h2>Door camera</h2>
-          <span class="pill" id="camPill">Not started</span>
-        </div>
-
-        <div class="camera-wrap">
-          <video id="video" autoplay playsinline muted></video>
-          <canvas id="overlay"></canvas>
-          <div class="camera-empty" id="cameraEmpty">
-            <p>Camera is off</p>
-            <span>Press “Start camera” and allow access when the browser asks.</span>
-          </div>
-        </div>
-
-        <div class="controls">
-          <button class="btn btn-primary" id="startBtn">Start camera</button>
-          <button class="btn btn-dark" id="scanBtn" disabled>Scan now</button>
-          <button class="btn btn-outline" id="autoBtn" disabled>Auto-scan: off</button>
-          <button class="btn btn-ghost" id="stopBtn" disabled>Stop</button>
-        </div>
-
-        <p class="hint" id="camMsg">Tip: stand about an arm's length from the camera, facing it, with light on your face.</p>
+    <div class="card camera-card">
+      <div class="card-head">
+        <h2>Door camera</h2>
+        <span class="pill" id="camPill">Not started</span>
       </div>
 
-      <!-- Result -->
-      <div class="card result-card" id="resultCard">
-        <div class="card-head">
-          <h2>Last scan</h2>
-          <span class="pill" id="scorePill">—</span>
-        </div>
-
-        <div class="result-body">
-          <div class="result-icon" id="resultIcon">?</div>
-          <h3 class="result-title" id="resultTitle">Waiting</h3>
-          <p class="result-text" id="resultText">Start the camera and press “Scan now”.</p>
-          <p class="result-meta" id="resultMeta"></p>
-        </div>
-
-        <div class="result-foot">
-          <span>Match threshold: <b id="thresholdVal">0.62</b></span>
-          <span id="enrolledCount">0 faces saved</span>
-        </div>
-      </div>
-    </section>
-
-    <!-- ============ Enroll + people ============ -->
-    <section class="grid-two">
-
-      <!-- Enroll -->
-      <div class="card">
-        <div class="card-head">
-          <h2>Add a welcome guest</h2>
-          <span class="pill pill-green">Enrolment</span>
-        </div>
-
-        <div class="card-body">
-          <p class="hint">
-            Type the person's name, look at the camera, then press
-            <b>Save face</b>. Two or three photos in different light work best.
-          </p>
-
-          <label class="field-label" for="nameInput">Person's name</label>
-          <input type="text" id="nameInput" placeholder="e.g. Mummy, Ravi (guard)" maxlength="24">
-
-          <button class="btn btn-primary btn-block" id="enrollBtn" disabled>Save face</button>
-
-          <div class="alert" id="enrollMsg"></div>
-
-          <p class="hint small">
-            Family members and trusted staff go here. Anyone not in this list is
-            flagged as an intruder.
-          </p>
+      <div class="camera-wrap">
+        <video id="video" autoplay playsinline muted></video>
+        <canvas id="overlay"></canvas>
+        <div class="camera-empty" id="cameraEmpty">
+          <p id="emptyTitle">Loading face models…</p>
+          <span id="emptyText">About 8 MB, downloaded once. Please wait a few seconds.</span>
         </div>
       </div>
 
-      <!-- People -->
-      <div class="card">
-        <div class="card-head">
-          <h2>Welcome list</h2>
-          <span class="pill" id="peopleCount">0 people</span>
-        </div>
-        <div class="card-body">
-          <div class="people-grid" id="peopleList">
-            <p class="empty">No one added yet.</p>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- ============ Events + intruders ============ -->
-    <section class="grid-two">
-
-      <div class="card">
-        <div class="card-head">
-          <h2>Recent activity</h2>
-          <span class="pill">Latest 12</span>
-        </div>
-        <div class="card-body">
-          <ul class="event-list" id="eventList">
-            <li class="empty">No activity yet.</li>
-          </ul>
-        </div>
+      <div class="controls">
+        <button class="btn btn-primary" id="startBtn" disabled>Start camera</button>
+        <button class="btn btn-dark" id="scanBtn" disabled>Scan now</button>
+        <button class="btn btn-outline" id="autoBtn" disabled>Auto-scan: off</button>
+        <button class="btn btn-ghost" id="stopBtn" disabled>Stop</button>
       </div>
 
-      <div class="card">
-        <div class="card-head">
-          <h2>Intruder snapshots</h2>
-          <span class="pill pill-red">Alerts</span>
-        </div>
-        <div class="card-body">
-          <div class="intruder-grid" id="intruderGrid">
-            <p class="empty">No intruders recorded.</p>
-          </div>
-        </div>
+      <p class="hint" id="camMsg">Tip: stand about an arm's length from the camera, facing it, with light on your face.</p>
+    </div>
+
+    <div class="card result-card" id="resultCard">
+      <div class="card-head">
+        <h2>Last scan</h2>
+        <span class="pill" id="scorePill">—</span>
       </div>
-    </section>
 
-    <p class="footer-note">
-      Demo project — Flask + OpenCV + HTML/CSS/JavaScript. Everything runs on your
-      own computer; photos never leave the machine.
-    </p>
-  </main>
+      <div class="result-body">
+        <div class="result-icon" id="resultIcon">?</div>
+        <h3 class="result-title" id="resultTitle">Waiting</h3>
+        <p class="result-text" id="resultText">Start the camera and press “Scan now”.</p>
+        <p class="result-meta" id="resultMeta"></p>
+      </div>
 
-  <!-- hidden canvas used to grab a frame from the video -->
-  <canvas id="capture" style="display:none"></canvas>
+      <div class="result-foot">
+        <span>Match distance: <b id="thresholdVal">0.50</b></span>
+        <span id="enrolledCount">0 faces saved</span>
+      </div>
+    </div>
+  </section>
 
-  <script src="/static/js/app.js"></script>
+  <section class="grid-two">
+
+    <div class="card">
+      <div class="card-head">
+        <h2>Add a welcome guest</h2>
+        <span class="pill pill-green">Enrolment</span>
+      </div>
+      <div class="card-body">
+        <p class="hint">Type the person's name, look at the camera, then press <b>Save face</b>. Two or three photos in different light work best.</p>
+
+        <label class="field-label" for="nameInput">Person's name</label>
+        <input type="text" id="nameInput" placeholder="e.g. Mummy, Ravi (guard)" maxlength="24">
+
+        <button class="btn btn-primary btn-block" id="enrollBtn" disabled>Save face</button>
+        <div class="alert" id="enrollMsg"></div>
+
+        <p class="hint small">Family members and trusted staff go here. Anyone not in this list is flagged as an intruder.</p>
+        <button class="btn btn-ghost" id="resetBtn" style="padding-left:0">Delete all saved faces and history</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-head">
+        <h2>Welcome list</h2>
+        <span class="pill" id="peopleCount">0 people</span>
+      </div>
+      <div class="card-body">
+        <div class="people-grid" id="peopleList"><p class="empty">No one added yet.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="grid-two">
+
+    <div class="card">
+      <div class="card-head">
+        <h2>Recent activity</h2>
+        <span class="pill">Latest 12</span>
+      </div>
+      <div class="card-body">
+        <ul class="event-list" id="eventList"><li class="empty">No activity yet.</li></ul>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-head">
+        <h2>Intruder snapshots</h2>
+        <span class="pill pill-red">Alerts</span>
+      </div>
+      <div class="card-body">
+        <div class="intruder-grid" id="intruderGrid"><p class="empty">No intruders recorded.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <p class="footer-note">
+    Runs completely inside your browser — face recognition, saved faces and history
+    never leave this device. No Python, no server, no uploads.
+  </p>
+</main>
+
+<canvas id="capture" style="display:none"></canvas>
+
+<script src="./face-api.js"></script>
+<script>
+/* =========================================================
+   SmartGuard - browser-only smart home security
+   Face detection + recognition with face-api.js (TensorFlow.js)
+   Everything is stored in localStorage on this device.
+   ========================================================= */
+
+var $ = function (id) { return document.getElementById(id); };
+
+var THRESHOLD = 0.50;      // smaller = stricter. lower it if you are not recognised
+var MODEL_URL = '.';       // model files sit next to index.html (flat, no folders)
+
+var video = $('video');
+var overlay = $('overlay');
+var captureCanvas = $('capture');
+
+var stream = null;
+var autoTimer = null;
+var busy = false;
+var modelsReady = false;
+
+var PEOPLE_KEY = 'sg_people';
+var EVENTS_KEY = 'sg_events';
+var SNAPS_KEY = 'sg_snapshots';
+
+/* ---------------- storage ---------------- */
+function load(key, fallback) {
+  try { return JSON.parse(localStorage.getItem(key)) || fallback; }
+  catch (e) { return fallback; }
+}
+function save(key, value) {
+  try { localStorage.setItem(key, JSON.stringify(value)); }
+  catch (e) { /* storage full - ignore */ }
+}
+
+/* ---------------- load the models ---------------- */
+async function loadModels() {
+  try {
+    await faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL);
+    await faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL);
+    await faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL);
+
+    modelsReady = true;
+    $('emptyTitle').textContent = 'Camera is off';
+    $('emptyText').textContent = 'Press “Start camera” and allow access when the browser asks.';
+    $('startBtn').disabled = false;
+    $('camPill').textContent = 'Ready';
+    $('camPill').className = 'pill pill-green';
+    setSystem('', 'Ready');
+    setCamMsg('Models loaded. Press “Start camera” to begin.', false);
+  } catch (err) {
+    $('emptyTitle').textContent = 'Could not load the face models';
+    $('emptyText').textContent = 'Check that the model files are in the same folder as index.html.';
+    setSystem('alert', 'Model load failed');
+    setCamMsg('Model files missing or blocked. If you opened the file directly, run a local server instead.', true);
+  }
+}
+
+/* ---------------- camera ---------------- */
+async function startCamera() {
+  if (stream) return;
+  if (!modelsReady) return;
+
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    setCamMsg('This browser cannot open the camera. Use Chrome, Edge or Firefox.', true);
+    return;
+  }
+
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({
+      video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: 'user' },
+      audio: false
+    });
+    video.srcObject = stream;
+    await video.play();
+
+    $('cameraEmpty').classList.add('hide');
+    $('camPill').textContent = 'Live';
+    $('camPill').className = 'pill pill-green';
+
+    $('startBtn').disabled = true;
+    $('scanBtn').disabled = false;
+    $('autoBtn').disabled = false;
+    $('stopBtn').disabled = false;
+    $('enrollBtn').disabled = false;
+
+    setSystem('live', 'Camera on');
+    setCamMsg('Camera is on. Press “Scan now”, or turn on auto-scan.', false);
+  } catch (err) {
+    var why = 'Camera permission was blocked.';
+    if (err && err.name === 'NotFoundError') why = 'No camera found on this device.';
+    if (err && err.name === 'NotAllowedError') why = 'You clicked “Block”. Reload and allow the camera.';
+    if (err && err.name === 'NotReadableError') why = 'Another app is using the camera. Close it and retry.';
+    setCamMsg(why, true);
+  }
+}
+
+function stopCamera() {
+  stopAuto();
+  if (stream) { stream.getTracks().forEach(function (t) { t.stop(); }); stream = null; }
+  video.srcObject = null;
+  clearBox();
+
+  $('cameraEmpty').classList.remove('hide');
+  $('camPill').textContent = 'Ready';
+  $('camPill').className = 'pill';
+  $('startBtn').disabled = false;
+  $('scanBtn').disabled = true;
+  $('autoBtn').disabled = true;
+  $('stopBtn').disabled = true;
+  $('enrollBtn').disabled = true;
+  setSystem('', 'Camera off');
+  setCamMsg('Camera stopped.', false);
+}
+
+/* ---------------- detection helpers ---------------- */
+function detectorOptions() {
+  return new faceapi.TinyFaceDetectorOptions({ inputSize: 320, scoreThreshold: 0.4 });
+}
+
+/* returns { box, descriptor } for the biggest face, or null */
+async function readFace() {
+  var result = await faceapi
+    .detectSingleFace(video, detectorOptions())
+    .withFaceLandmarks()
+    .withFaceDescriptor();
+
+  if (!result) return null;
+  var box = result.detection.box;
+  return { box: box, descriptor: Array.from(result.descriptor) };
+}
+
+/* small square crop of the face, as a JPEG data URL, for thumbnails */
+function faceThumb(box, size) {
+  var pad = Math.round(Math.max(box.width, box.height) * 0.25);
+  var x = Math.max(0, box.x - pad);
+  var y = Math.max(0, box.y - pad);
+  var w = Math.min(video.videoWidth - x, box.width + pad * 2);
+  var h = Math.min(video.videoHeight - y, box.height + pad * 2);
+
+  var canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  var ctx = canvas.getContext('2d');
+  ctx.translate(size, 0);
+  ctx.scale(-1, 1);                        // match the mirrored video
+  ctx.drawImage(video, x, y, w, h, 0, 0, size, size);
+  return canvas.toDataURL('image/jpeg', 0.72);
+}
+
+/* ---------------- enrolment ---------------- */
+async function enroll() {
+  var name = $('nameInput').value.trim();
+  if (name.length < 2) { showEnrollMsg('Please type a name first (2 letters or more).', false); return; }
+  if (!stream) { showEnrollMsg('Start the camera first.', false); return; }
+
+  $('enrollBtn').disabled = true;
+  try {
+    var face = await readFace();
+    if (!face) { showEnrollMsg('No face found. Face the camera in good light.', false); return; }
+
+    var people = load(PEOPLE_KEY, []);
+    var slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+
+    people.push({
+      slug: slug,
+      name: name,
+      descriptor: face.descriptor,
+      thumb: faceThumb(face.box, 110)
+    });
+    save(PEOPLE_KEY, people);
+
+    var count = people.filter(function (p) { return p.slug === slug; }).length;
+    showEnrollMsg('Saved photo ' + count + ' of ' + name + '.', true);
+    $('nameInput').value = '';
+    renderPeople();
+    beep('known');
+  } catch (err) {
+    showEnrollMsg('Something went wrong while reading the face.', false);
+  } finally {
+    $('enrollBtn').disabled = false;
+  }
+}
+
+/* ---------------- scanning ---------------- */
+async function scan() {
+  if (!stream || busy || !modelsReady) return;
+  busy = true;
+  $('scanBtn').disabled = true;
+
+  try {
+    var face = await readFace();
+
+    if (!face) {
+      showResult('noface', 'No face detected', 'Move closer and face the camera.');
+      $('scorePill').textContent = '—';
+      $('scorePill').className = 'pill';
+      $('resultMeta').textContent = '';
+      clearBox();
+      return;
+    }
+
+    var people = load(PEOPLE_KEY, []);
+    if (people.length === 0) {
+      showResult('noface', 'Nobody enrolled', 'Add a welcome guest first, then scan again.');
+      drawBox(face.box, '#a05a00');
+      return;
+    }
+
+    var best = { distance: Infinity, person: null };
+    people.forEach(function (person) {
+      var d = faceapi.euclideanDistance(face.descriptor, person.descriptor);
+      if (d < best.distance) best = { distance: d, person: person };
+    });
+
+    var distance = best.distance;
+
+    if (distance < THRESHOLD) {
+      showResult('known', 'Welcome, ' + best.person.name, 'Face matched a person on the welcome list.');
+      drawBox(face.box, '#1e8e3e');
+      beep('known');
+      setSystem('live', 'Welcome: ' + best.person.name);
+      logEvent(best.person.name, 'welcome');
+    } else {
+      showResult('unknown', 'INTRUDER ALERT', 'This face is not on the welcome list. A snapshot was saved.');
+      drawBox(face.box, '#c5221f');
+      beep('unknown');
+      setSystem('alert', 'Intruder detected');
+      addSnapshot(faceThumb(face.box, 200));
+      logEvent('Unknown', 'intruder');
+    }
+
+    $('scorePill').textContent = 'dist ' + distance.toFixed(2);
+    $('scorePill').className = 'pill ' + (distance < THRESHOLD ? 'pill-green' : 'pill-red');
+    $('resultMeta').textContent = 'Closest match distance ' + distance.toFixed(2) +
+      ' (needs under ' + THRESHOLD.toFixed(2) + ') · ' + people.length + ' saved face(s)';
+
+    renderEvents();
+    renderIntruders();
+  } catch (err) {
+    showResult('noface', 'Could not read the frame', 'Try again, or restart the camera.');
+  } finally {
+    busy = false;
+    if (stream) $('scanBtn').disabled = false;
+  }
+}
+
+function showResult(kind, title, text) {
+  var card = $('resultCard');
+  card.className = 'card result-card';
+  if (kind === 'known') { card.classList.add('is-known'); $('resultIcon').textContent = '\u2713'; }
+  else if (kind === 'unknown') { card.classList.add('is-unknown'); $('resultIcon').textContent = '!'; }
+  else { card.classList.add('is-noface'); $('resultIcon').textContent = '?'; }
+  $('resultTitle').textContent = title;
+  $('resultText').textContent = text;
+}
+
+/* ---------------- overlay ---------------- */
+function drawBox(box, colour) {
+  var w = video.videoWidth || 640;
+  var h = video.videoHeight || 480;
+  overlay.width = w;
+  overlay.height = h;
+  var ctx = overlay.getContext('2d');
+  ctx.clearRect(0, 0, w, h);
+  if (!box) return;
+  ctx.strokeStyle = colour;
+  ctx.lineWidth = Math.max(3, Math.round(w / 200));
+  ctx.strokeRect(box.x, box.y, box.width, box.height);
+}
+
+function clearBox() {
+  overlay.getContext('2d').clearRect(0, 0, overlay.width, overlay.height);
+}
+
+/* ---------------- auto scan ---------------- */
+function startAuto() {
+  if (autoTimer) return;
+  autoTimer = setInterval(scan, 2200);
+  $('autoBtn').textContent = 'Auto-scan: on';
+  $('autoBtn').className = 'btn btn-primary';
+  scan();
+}
+function stopAuto() {
+  if (autoTimer) { clearInterval(autoTimer); autoTimer = null; }
+  var btn = $('autoBtn');
+  if (btn) { btn.textContent = 'Auto-scan: off'; btn.className = 'btn btn-outline'; }
+}
+
+/* ---------------- history ---------------- */
+function logEvent(name, status) {
+  var events = load(EVENTS_KEY, []);
+  events.unshift({ name: name, status: status, time: stamp() });
+  save(EVENTS_KEY, events.slice(0, 20));
+}
+
+function addSnapshot(dataUrl) {
+  var snaps = load(SNAPS_KEY, []);
+  snaps.unshift({ img: dataUrl, time: stamp() });
+  save(SNAPS_KEY, snaps.slice(0, 8));
+}
+
+function stamp() {
+  var d = new Date();
+  var pad = function (n) { return (n < 10 ? '0' : '') + n; };
+  return pad(d.getDate()) + '-' + pad(d.getMonth() + 1) + ' ' + pad(d.getHours()) + ':' + pad(d.getMinutes());
+}
+
+/* ---------------- rendering ---------------- */
+function renderPeople() {
+  var people = load(PEOPLE_KEY, []);
+  var list = $('peopleList');
+  list.innerHTML = '';
+
+  if (people.length === 0) {
+    list.innerHTML = '<p class="empty">No one added yet. Add a face on the left.</p>';
+    $('peopleCount').textContent = '0 people';
+    $('enrolledCount').textContent = '0 faces saved';
+    return;
+  }
+
+  /* group photos by person so 3 photos = one card */
+  var groups = {};
+  people.forEach(function (p) {
+    if (!groups[p.slug]) groups[p.slug] = { name: p.name, photos: 0, thumb: p.thumb };
+    groups[p.slug].photos++;
+  });
+
+  Object.keys(groups).forEach(function (slug) {
+    var g = groups[slug];
+    var card = document.createElement('div');
+    card.className = 'person';
+    card.innerHTML =
+      (g.thumb ? '<img src="' + g.thumb + '" alt="' + g.name + '">' : '<div class="noimg">?</div>') +
+      '<span class="person-name">' + g.name + '</span>' +
+      '<span class="person-sub">' + g.photos + ' photo' + (g.photos === 1 ? '' : 's') + '</span>' +
+      '<button class="person-remove" data-slug="' + slug + '">Remove</button>';
+    list.appendChild(card);
+  });
+
+  $('peopleCount').textContent = Object.keys(groups).length + ' people';
+  $('enrolledCount').textContent = people.length + ' face' + (people.length === 1 ? '' : 's') + ' saved';
+}
+
+function renderEvents() {
+  var events = load(EVENTS_KEY, []);
+  var list = $('eventList');
+  list.innerHTML = '';
+  if (events.length === 0) { list.innerHTML = '<li class="empty">No activity yet.</li>'; return; }
+
+  events.slice(0, 12).forEach(function (e) {
+    var li = document.createElement('li');
+    var kind = e.status === 'intruder' ? 'intruder' : 'welcome';
+    li.innerHTML =
+      '<span class="event-badge ' + kind + '">' + (kind === 'intruder' ? 'Intruder' : 'Welcome') + '</span>' +
+      '<span class="event-name">' + e.name + '</span>' +
+      '<span class="event-time">' + e.time + '</span>';
+    list.appendChild(li);
+  });
+}
+
+function renderIntruders() {
+  var snaps = load(SNAPS_KEY, []);
+  var grid = $('intruderGrid');
+  grid.innerHTML = '';
+  if (snaps.length === 0) { grid.innerHTML = '<p class="empty">No intruders recorded.</p>'; return; }
+
+  snaps.forEach(function (s) {
+    var fig = document.createElement('figure');
+    fig.innerHTML = '<img src="' + s.img + '" alt="Intruder snapshot">' +
+                    '<figcaption>' + s.time + '</figcaption>';
+    grid.appendChild(fig);
+  });
+}
+
+/* ---------------- small helpers ---------------- */
+function showEnrollMsg(text, good) {
+  var box = $('enrollMsg');
+  box.textContent = text;
+  box.className = 'alert show ' + (good ? 'alert-ok' : 'alert-bad');
+}
+
+function setSystem(state, text) {
+  $('sysDot').className = 'dot' + (state ? ' ' + state : '');
+  $('sysText').textContent = text;
+}
+
+function setCamMsg(text, bad) {
+  var el = $('camMsg');
+  el.textContent = text;
+  el.style.color = bad ? '#c5221f' : '';
+}
+
+var audioCtx = null;
+function beep(kind) {
+  try {
+    if (!audioCtx) {
+      var Ctx = window.AudioContext || window.webkitAudioContext;
+      if (!Ctx) return;
+      audioCtx = new Ctx();
+    }
+    var notes = kind === 'unknown' ? [220, 220, 180] : [880];
+    notes.forEach(function (freq, i) {
+      var osc = audioCtx.createOscillator();
+      var gain = audioCtx.createGain();
+      osc.type = 'sine';
+      osc.frequency.value = freq;
+      gain.gain.value = 0.06;
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      var start = audioCtx.currentTime + i * 0.22;
+      osc.start(start);
+      osc.stop(start + 0.16);
+    });
+  } catch (e) { /* sound is optional */ }
+}
+
+/* ---------------- wire up ---------------- */
+document.addEventListener('DOMContentLoaded', function () {
+  $('thresholdVal').textContent = THRESHOLD.toFixed(2);
+
+  $('startBtn').addEventListener('click', startCamera);
+  $('stopBtn').addEventListener('click', stopCamera);
+  $('scanBtn').addEventListener('click', scan);
+  $('enrollBtn').addEventListener('click', enroll);
+  $('autoBtn').addEventListener('click', function () { if (autoTimer) stopAuto(); else startAuto(); });
+
+  $('nameInput').addEventListener('keydown', function (e) { if (e.key === 'Enter') enroll(); });
+
+  $('peopleList').addEventListener('click', function (e) {
+    var btn = e.target.closest('button[data-slug]');
+    if (!btn) return;
+    var slug = btn.getAttribute('data-slug');
+    if (!window.confirm('Remove this person from the welcome list?')) return;
+    var people = load(PEOPLE_KEY, []).filter(function (p) { return p.slug !== slug; });
+    save(PEOPLE_KEY, people);
+    renderPeople();
+  });
+
+  $('resetBtn').addEventListener('click', function () {
+    if (!window.confirm('Delete every saved face, snapshot and log entry?')) return;
+    localStorage.removeItem(PEOPLE_KEY);
+    localStorage.removeItem(EVENTS_KEY);
+    localStorage.removeItem(SNAPS_KEY);
+    renderPeople(); renderEvents(); renderIntruders();
+    showEnrollMsg('All saved data deleted.', true);
+  });
+
+  renderPeople();
+  renderEvents();
+  renderIntruders();
+  loadModels();
+
+  /* demo mode: ?autostart=1 opens the camera, &autoscan=1 also scans every 2s */
+  var query = window.location.search;
+  if (query.indexOf('autostart=1') > -1) {
+    var waitForModels = setInterval(function () {
+      if (modelsReady) {
+        clearInterval(waitForModels);
+        startCamera().then(function () {
+          if (query.indexOf('autoscan=1') > -1) startAuto();
+        });
+      }
+    }, 300);
+  }
+});
+</script>
 </body>
 </html>
