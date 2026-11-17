@@ -1,0 +1,15 @@
+# Python
+__pycache__/
+*.pyc
+venv/
+.venv/
+
+# Personal face photos and logs - never commit these
+faces/*.jpg
+faces/people.json
+intruders/*.jpg
+events.csv
+
+# OS junk
+.DS_Store
+Thumbs.db

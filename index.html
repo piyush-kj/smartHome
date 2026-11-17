@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SmartGuard — Smart Home Security System</title>
+  <meta name="description" content="Smart home security system that recognises family members and flags intruders using OpenCV face recognition.">
+  <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+
+  <header class="topbar">
+    <div class="container topbar-inner">
+      <div class="brand">
+        <span class="brand-mark">SG</span>
+        <div>
+          <strong>SmartGuard</strong>
+          <span class="brand-sub">Smart Home Security</span>
+        </div>
+      </div>
+      <div class="system-state">
+        <span class="dot" id="sysDot"></span>
+        <span id="sysText">Camera off</span>
+      </div>
+    </div>
+  </header>
+
+  <main class="container">
+
+    <!-- ============ Camera + result ============ -->
+    <section class="grid-main">
+
+      <!-- Camera -->
+      <div class="card camera-card">
+        <div class="card-head">
+          <h2>Door camera</h2>
+          <span class="pill" id="camPill">Not started</span>
+        </div>
+
+        <div class="camera-wrap">
+          <video id="video" autoplay playsinline muted></video>
+          <canvas id="overlay"></canvas>
+          <div class="camera-empty" id="cameraEmpty">
+            <p>Camera is off</p>
+            <span>Press “Start camera” and allow access when the browser asks.</span>
+          </div>
+        </div>
+
+        <div class="controls">
+          <button class="btn btn-primary" id="startBtn">Start camera</button>
+          <button class="btn btn-dark" id="scanBtn" disabled>Scan now</button>
+          <button class="btn btn-outline" id="autoBtn" disabled>Auto-scan: off</button>
+          <button class="btn btn-ghost" id="stopBtn" disabled>Stop</button>
+        </div>
+
+        <p class="hint" id="camMsg">Tip: stand about an arm's length from the camera, facing it, with light on your face.</p>
+      </div>
+
+      <!-- Result -->
+      <div class="card result-card" id="resultCard">
+        <div class="card-head">
+          <h2>Last scan</h2>
+          <span class="pill" id="scorePill">—</span>
+        </div>
+
+        <div class="result-body">
+          <div class="result-icon" id="resultIcon">?</div>
+          <h3 class="result-title" id="resultTitle">Waiting</h3>
+          <p class="result-text" id="resultText">Start the camera and press “Scan now”.</p>
+          <p class="result-meta" id="resultMeta"></p>
+        </div>
+
+        <div class="result-foot">
+          <span>Match threshold: <b id="thresholdVal">0.62</b></span>
+          <span id="enrolledCount">0 faces saved</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ Enroll + people ============ -->
+    <section class="grid-two">
+
+      <!-- Enroll -->
+      <div class="card">
+        <div class="card-head">
+          <h2>Add a welcome guest</h2>
+          <span class="pill pill-green">Enrolment</span>
+        </div>
+
+        <div class="card-body">
+          <p class="hint">
+            Type the person's name, look at the camera, then press
+            <b>Save face</b>. Two or three photos in different light work best.
+          </p>
+
+          <label class="field-label" for="nameInput">Person's name</label>
+          <input type="text" id="nameInput" placeholder="e.g. Mummy, Ravi (guard)" maxlength="24">
+
+          <button class="btn btn-primary btn-block" id="enrollBtn" disabled>Save face</button>
+
+          <div class="alert" id="enrollMsg"></div>
+
+          <p class="hint small">
+            Family members and trusted staff go here. Anyone not in this list is
+            flagged as an intruder.
+          </p>
+        </div>
+      </div>
+
+      <!-- People -->
+      <div class="card">
+        <div class="card-head">
+          <h2>Welcome list</h2>
+          <span class="pill" id="peopleCount">0 people</span>
+        </div>
+        <div class="card-body">
+          <div class="people-grid" id="peopleList">
+            <p class="empty">No one added yet.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ Events + intruders ============ -->
+    <section class="grid-two">
+
+      <div class="card">
+        <div class="card-head">
+          <h2>Recent activity</h2>
+          <span class="pill">Latest 12</span>
+        </div>
+        <div class="card-body">
+          <ul class="event-list" id="eventList">
+            <li class="empty">No activity yet.</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head">
+          <h2>Intruder snapshots</h2>
+          <span class="pill pill-red">Alerts</span>
+        </div>
+        <div class="card-body">
+          <div class="intruder-grid" id="intruderGrid">
+            <p class="empty">No intruders recorded.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <p class="footer-note">
+      Demo project — Flask + OpenCV + HTML/CSS/JavaScript. Everything runs on your
+      own computer; photos never leave the machine.
+    </p>
+  </main>
+
+  <!-- hidden canvas used to grab a frame from the video -->
+  <canvas id="capture" style="display:none"></canvas>
+
+  <script src="/static/js/app.js"></script>
+</body>
+</html>
